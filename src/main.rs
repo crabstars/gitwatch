@@ -19,7 +19,6 @@ test:
 
 Future:
     - delete older logs
-    - set if you want to log or not to
     - change commit message, default value from config maybe
 */
 
@@ -37,7 +36,7 @@ fn main() {
                         &mut config::load(),
                     )
                 } else {
-                    println!("No relativ file path was given. Please add to the command a file with \"-f <relativ_file_path_from_repo>\"")
+                    println!("No relativ file path was specified. Please add to the command a file with \"-f <relativ_file_path_from_repo>\"")
                 }
             }
             clap_models::Type::Repo => commands::remove_repo(&sc.name, &mut config::load()),
@@ -62,7 +61,7 @@ fn main() {
                 if sc.name.is_some() {
                     display::repository_files(&sc.name.unwrap(), &config::load())
                 } else {
-                    println!("No repository name was given. Please add to the command a name with \"-n <repo_name>\"")
+                    println!("No repository name was specified. Please add to the command a name with \"-n <repo_name>\"")
                 }
             }
             clap_models::TypePlural::Repos => display::repositories(&config::load()),
