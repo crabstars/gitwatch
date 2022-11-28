@@ -1,5 +1,5 @@
 use crate::commands::get_repo_not_mut;
-use crate::config::{get_dir, Config};
+use crate::config::{Config, OperationsFacade};
 
 pub fn repositories(config: &Config) {
     if let Some(repos) = &config.repositories {
@@ -33,7 +33,7 @@ pub fn repository_files(repo_name: &str, config: &Config) {
 pub fn info(config: Config) {
     println!(
         "Setting information:\n config path: {}\n logging path: {}\n repository count: {}",
-        get_dir().display(),
+        config.get_dir().display(),
         config
             .logging_path
             .unwrap_or_else(|| "Logging not set!".to_string()),

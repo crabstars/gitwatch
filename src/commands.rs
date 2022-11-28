@@ -1,4 +1,4 @@
-use crate::config::{save, Config, GitRepository};
+use crate::config::{Config, GitRepository, OperationsFacade};
 use core::panic;
 use git2::{Repository, Status};
 use std::ops::ControlFlow;
@@ -72,7 +72,7 @@ pub fn init_repo(name: String, path: String, branch: String, config: &mut Config
             active: true,
         }])
     }
-    save(config)
+    config.save()
 }
 
 pub fn remove_repo(repo_name: &str, config: &mut Config) {
@@ -82,7 +82,7 @@ pub fn remove_repo(repo_name: &str, config: &mut Config) {
         .expect("There are no repositories to remove!")
         .retain(|repo| repo.name != repo_name);
 
-    save(config)
+    config.save()
 }
 
 pub fn add_file_to_repo(repo_name: String, relativ_file_path: String, config: &mut Config) {
@@ -97,7 +97,7 @@ pub fn add_file_to_repo(repo_name: String, relativ_file_path: String, config: &m
         repo.files = Some(vec![relativ_file_path])
     }
 
-    save(config)
+    config.save()
 }
 
 pub fn remove_file_from_repo(repo_name: &str, relativ_file_path: &str, config: &mut Config) {
@@ -114,7 +114,7 @@ pub fn remove_file_from_repo(repo_name: &str, relativ_file_path: &str, config: &
             .expect("There are no files to remove!")
             .retain(|file| file != relativ_file_path);
     }
-    save(config)
+    config.save()
 }
 
 pub fn change_auto_push(repo_name: &str, config: &mut Config) {
@@ -122,7 +122,7 @@ pub fn change_auto_push(repo_name: &str, config: &mut Config) {
     repo.auto_push = !repo.auto_push;
 
     println!("Auto push was set to: {}", repo.auto_push);
-    save(config)
+    config.save()
 }
 
 pub fn change_active(repo_name: &str, config: &mut Config) {
@@ -134,7 +134,7 @@ pub fn change_active(repo_name: &str, config: &mut Config) {
     } else {
         println!("The repo is now inactive and no commits or pushes are happening.")
     }
-    save(config)
+    config.save()
 }
 
 pub fn set_branch(repo_name: &str, branch: Option<String>, config: &mut Config) {
@@ -144,7 +144,7 @@ pub fn set_branch(repo_name: &str, branch: Option<String>, config: &mut Config) 
     }
     let repo = get_repo(repo_name, config);
     repo.branch = branch.unwrap();
-    save(config)
+    config.save()
 }
 
 pub fn get_repo_not_mut<'a>(repo_name: &str, config: &'a Config) -> &'a GitRepository {

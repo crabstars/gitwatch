@@ -1,7 +1,7 @@
 use clap::{ArgAction, Parser, Subcommand};
 
 #[derive(Parser)]
-#[clap(version = "1.0")]
+#[clap(version = "0.1")]
 pub struct Command {
     #[clap(subcommand)]
     pub subcmd: SubCommand,
