@@ -1,9 +1,9 @@
 #[cfg(test)]
-use mockall::{automock, predicate::*};
+use mockall::automock;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::path::PathBuf;
-use std::{fs, str};
+use std::{fs, io, str};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Config {
@@ -29,19 +29,19 @@ pub trait OperationsFacade {
 }
 
 trait Operations {
-    fn save(&self);
-    fn create_default(&mut self, overwrite: bool);
+    fn save(&self, extern_lib: &impl ConfigMockLib);
+    fn create_default(&mut self, overwrite: bool, extern_lib: &impl ConfigMockLib);
     fn load(&self) -> Self;
-    fn get_dir(&self, home_lib: &impl HomeLib) -> PathBuf;
+    fn get_dir(&self, extern_lib: &impl ConfigMockLib) -> PathBuf;
 }
 
 impl OperationsFacade for Config {
     fn save(&self) {
-        self::Operations::save(self);
+        self::Operations::save(self, &ConfigFacade {});
     }
 
     fn create_default(&mut self, overwrite: bool) {
-        self::Operations::create_default(self, overwrite);
+        self::Operations::create_default(self, overwrite, &ConfigFacade {});
     }
 
     fn load(&self) -> Self {
@@ -49,17 +49,19 @@ impl OperationsFacade for Config {
     }
 
     fn get_dir(&self) -> PathBuf {
-        self::Operations::get_dir(self, &HomeFacade {})
+        self::Operations::get_dir(self, &ConfigFacade {})
     }
 }
 
 impl Operations for Config {
-    fn save(&self) {
+    fn save(&self, extern_lib: &impl ConfigMockLib) {
         let serialized = serde_yaml::to_string(&self).unwrap();
-        fs::write(self::OperationsFacade::get_dir(self), serialized).expect("Unable to write file");
+        extern_lib
+            .write(self::OperationsFacade::get_dir(self), serialized)
+            .expect("Unable to write file");
     }
 
-    fn create_default(&mut self, overwrite: bool) {
+    fn create_default(&mut self, overwrite: bool, extern_lib: &impl ConfigMockLib) {
         let config_path = self::OperationsFacade::get_dir(self);
 
         if config_path.exists() && !overwrite {
@@ -68,11 +70,11 @@ impl Operations for Config {
             )
         }
 
-        File::create(&config_path).unwrap();
+        extern_lib.create(config_path.clone()).unwrap();
         self.repositories = None;
         self.logging_path = Some(String::from("/tmp/gitwatch-log/output.log"));
 
-        self::Operations::save(self);
+        self::Operations::save(self, &ConfigFacade {});
         println!("File was created: {:?}", config_path)
     }
 
@@ -91,8 +93,8 @@ impl Operations for Config {
         }
     }
 
-    fn get_dir(&self, home_lib: &impl HomeLib) -> PathBuf {
-        let mut home_dir = match home_lib.home_dir() {
+    fn get_dir(&self, extern_lib: &impl ConfigMockLib) -> PathBuf {
+        let mut home_dir = match extern_lib.home_dir() {
             Some(path) => path,
             None => panic!("Impossible to get your home dir!"),
         };
@@ -102,27 +104,35 @@ impl Operations for Config {
 }
 
 #[cfg_attr(test, automock)]
-trait HomeLib {
+trait ConfigMockLib {
     fn home_dir(&self) -> Option<PathBuf>;
+    fn create(&self, path: PathBuf) -> io::Result<()>;
+    fn write(&self, path: PathBuf, contents: String) -> io::Result<()>;
 }
-struct HomeFacade {}
-impl HomeLib for HomeFacade {
+struct ConfigFacade {}
+impl ConfigMockLib for ConfigFacade {
     fn home_dir(&self) -> Option<PathBuf> {
         home::home_dir()
+    }
+    fn create(&self, path: PathBuf) -> io::Result<()> {
+        File::create(path)?;
+        Ok(())
+    }
+
+    fn write(&self, path: PathBuf, contents: String) -> io::Result<()> {
+        fs::write(path, contents)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use mockall::predicate::path;
-
-    use crate::config::{Config, MockHomeLib, Operations};
+    use crate::config::{Config, MockConfigMockLib, Operations};
     use std::path::PathBuf;
 
     #[test]
     fn get_dir_returns_correct_dir_mock() {
         let home_test = "/home/test/";
-        let mut mock = MockHomeLib::new();
+        let mut mock = MockConfigMockLib::new();
 
         let mut path = PathBuf::new();
         path.push(home_test);
@@ -134,5 +144,16 @@ mod tests {
             config.get_dir(&mock).to_str().unwrap(),
             home_test.to_owned() + ".config/gitwatch-rs/config.yaml"
         );
+    }
+
+    #[test]
+    #[should_panic = "Impossible to get your home dir!"]
+    fn get_dir_returns_none_should_panic() {
+        let mut mock = MockConfigMockLib::new();
+
+        mock.expect_home_dir().once().return_const(None);
+
+        let config = Config::default();
+        config.get_dir(&mock).to_str().unwrap();
     }
 }
