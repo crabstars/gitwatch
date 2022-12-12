@@ -1,3 +1,5 @@
+use crate::commands::Commands;
+use crate::display::Displayer;
 use clap::Parser;
 use config::{Config, OperationsFacade};
 mod clap_models;
@@ -32,43 +34,66 @@ fn main() {
         clap_models::SubCommand::Rm(sc) => match sc.r#type {
             clap_models::Type::File => {
                 if sc.file.is_some() {
-                    commands::remove_file_from_repo(&sc.name, &sc.file.unwrap(), &mut config.load())
+                    config.load();
+                    config.remove_file_from_repo(&sc.name, &sc.file.unwrap())
                 } else {
                     println!("No relativ file path was specified. Please add to the command a file with \"-f <relativ_file_path_from_repo>\"")
                 }
             }
-            clap_models::Type::Repo => commands::remove_repo(&sc.name, &mut config.load()),
+            clap_models::Type::Repo => {
+                config.load();
+                config.remove_repo(&sc.name)
+            }
         },
         clap_models::SubCommand::Init(sc) => {
-            commands::init_repo(sc.name, sc.path, sc.branch, &mut config.load())
+            config.load();
+            config.init_repo(sc.name, sc.path, sc.branch)
         }
+
         clap_models::SubCommand::Set(sc) => match sc.property {
-            clap_models::Property::Push => commands::change_auto_push(&sc.name, &mut config.load()),
-            clap_models::Property::Active => commands::change_active(&sc.name, &mut config.load()),
+            clap_models::Property::Push => {
+                config.load();
+                config.change_auto_push(&sc.name)
+            }
+
+            clap_models::Property::Active => {
+                config.load();
+                config.change_active(&sc.name)
+            }
+
             clap_models::Property::Branch => {
-                commands::set_branch(&sc.name, sc.branch, &mut config.load())
+                config.load();
+                config.set_branch(&sc.name, sc.branch)
             }
         },
         clap_models::SubCommand::Add(sc) => {
-            commands::add_file_to_repo(sc.name, sc.file, &mut config.load())
+            config.load();
+            config.add_file_to_repo(sc.name, sc.file)
         }
         clap_models::SubCommand::List(sc) => match sc.r#type {
             clap_models::TypePlural::Files => {
                 if sc.name.is_some() {
-                    display::repository_files(&sc.name.unwrap(), &config.load())
+                    config.load();
+                    config.repository_files(&sc.name.unwrap())
                 } else {
                     println!("No repository name was specified. Please add to the command a name with \"-n <repo_name>\"")
                 }
             }
-            clap_models::TypePlural::Repos => display::repositories(&config.load()),
+            clap_models::TypePlural::Repos => {
+                config.load();
+                config.repositories()
+            }
         },
         clap_models::SubCommand::Watch(_) => {
-            let config = &config.load();
+            config.load();
             if config.logging_path.is_some() {
                 logger::init(config.logging_path.clone().unwrap());
             }
-            commands::run_gitwatch(config)
+            config.run_gitwatch();
         }
-        clap_models::SubCommand::Info(_) => display::info(config.load()),
+        clap_models::SubCommand::Info(_) => {
+            config.load();
+            config.info()
+        }
     }
 }

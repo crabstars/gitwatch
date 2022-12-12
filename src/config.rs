@@ -24,14 +24,14 @@ pub struct GitRepository {
 pub trait OperationsFacade {
     fn save(&self);
     fn create_default(&mut self, overwrite: bool);
-    fn load(&self) -> Self;
+    fn load(&mut self);
     fn get_dir(&self) -> PathBuf;
 }
 
 trait Operations {
     fn save(&self, extern_lib: &impl ConfigMockLib);
     fn create_default(&mut self, overwrite: bool, extern_lib: &impl ConfigMockLib);
-    fn load(&self) -> Self;
+    fn load(&mut self);
     fn get_dir(&self, extern_lib: &impl ConfigMockLib) -> PathBuf;
 }
 
@@ -44,7 +44,7 @@ impl OperationsFacade for Config {
         self::Operations::create_default(self, overwrite, &ConfigFacade {});
     }
 
-    fn load(&self) -> Self {
+    fn load(&mut self) {
         self::Operations::load(self)
     }
 
@@ -78,7 +78,7 @@ impl Operations for Config {
         println!("File was created: {:?}", config_path)
     }
 
-    fn load(&self) -> Self {
+    fn load(&mut self) {
         let file_content = match fs::read_to_string(self::OperationsFacade::get_dir(self)) {
             Ok(content) => content,
             Err(_) => {
@@ -88,9 +88,9 @@ impl Operations for Config {
         };
 
         match serde_yaml::from_str(&file_content) {
-            Ok(config) => config,
+            Ok(config) => *self = config,
             Err(e) => panic!("Could not read config: {}", e),
-        }
+        };
     }
 
     fn get_dir(&self, extern_lib: &impl ConfigMockLib) -> PathBuf {
